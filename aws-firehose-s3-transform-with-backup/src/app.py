@@ -35,7 +35,7 @@ def lambda_handler(event, context):
 
     for record in event["records"]:
         print(record["recordId"])
-        payload = base64.b64decode(record["data"])
+        payload = base64.b64decode(record["data"]).decode("utf-8")
         m = p.match(payload)
         if m:
             succeeded_record_cnt += 1
@@ -74,7 +74,7 @@ def lambda_handler(event, context):
             output_record = {
                 "recordId": record["recordId"],
                 "result": "Ok",
-                "data": base64.b64encode(json.dumps(data_field)),
+                "data": base64.b64encode(json.dumps(data_field).encode("utf-8")).decode("utf-8"),
             }
         else:
             print("Parsing failed")
