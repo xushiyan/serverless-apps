@@ -1,1 +1,1 @@
-# localstack-playground
+# Serverless Apps
