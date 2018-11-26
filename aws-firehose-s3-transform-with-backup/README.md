@@ -1,171 +1,69 @@
 # aws-firehose-s3-transform-with-backup
 
-This is a sample template for aws-firehose-s3-transform-with-backup - Below is a brief explanation of what we have generated for you:
+## Prerequisites
+
+- `aws cli`
+- `aws sam cli`
+
+## Create Stacks
+
+### Create the stack for Kinesis Firehose transformation processor
+
+#### Create S3 bucket for Lambda deployment
 
 ```bash
-.
-├── README.md                   <-- This instructions file
-├── hello_world                 <-- Source code for a lambda function
-│   ├── __init__.py
-│   ├── app.py                  <-- Lambda function code
-│   └── requirements.txt        <-- Python dependencies
-├── template.yaml               <-- SAM Template
-└── tests                       <-- Unit tests
-    └── unit
-        ├── __init__.py
-        └── test_handler.py
+aws s3 mb s3://rxu-sls
 ```
 
-## Requirements
+_Note: change to a globally unique bucket name._
 
-* AWS CLI already configured with Administrator permission
-* [Python 3 installed](https://www.python.org/downloads/)
-* [Docker installed](https://www.docker.com/community-edition)
-* [Python Virtual Environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/)
-
-## Setup process
-
-### Building the project
-
-[AWS Lambda requires a flat folder](https://docs.aws.amazon.com/lambda/latest/dg/lambda-python-how-to-create-deployment-package.html) with the application as well as its dependencies. When you make changes to your source code or dependency manifest,
-run the following command to build your project local testing and deployment:
- 
-```bash
-sam build
-```
-
-If your dependencies contain native modules that need to be compiled specifically for the operating system running on AWS Lambda, use this command to build inside a Lambda-like Docker container instead:
-```bash
-sam build --use-container
-```
- 
-By default, this command writes built artifacts to `.aws-sam/build` folder.
-
-### Local development
-
-**Invoking function locally through local API Gateway**
+#### Package Lambda function
 
 ```bash
-sam local start-api
+sam package --s3-bucket rxu-sls --output-template-file packaged.yaml --force-upload
 ```
 
-If the previous command ran successfully you should now be able to hit the following local endpoint to invoke your function `http://localhost:3000/hello`
-
-**SAM CLI** is used to emulate both Lambda and API Gateway locally and uses our `template.yaml` to understand how to bootstrap this environment (runtime, where the source code is, etc.) - The following excerpt is what the CLI will read in order to initialize an API and its routes:
-
-```yaml
-...
-Events:
-    HelloWorld:
-        Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-        Properties:
-            Path: /hello
-            Method: get
-```
-
-## Packaging and deployment
-
-AWS Lambda Python runtime requires a flat folder with all dependencies including the application. SAM will use `CodeUri` property to know where to look up for both application and dependencies:
-
-```yaml
-...
-    HelloWorldFunction:
-        Type: AWS::Serverless::Function
-        Properties:
-            CodeUri: hello_world/
-            ...
-```
-
-Firstly, we need a `S3 bucket` where we can upload our Lambda functions packaged as ZIP before we deploy anything - If you don't have a S3 bucket to store code artifacts then this is a good time to create one:
+#### Deploy Lambda function
 
 ```bash
-aws s3 mb s3://BUCKET_NAME
-```
-
-Next, run the following command to package our Lambda function to S3:
-
-```bash
-sam package \
-    --output-template-file packaged.yaml \
-    --s3-bucket REPLACE_THIS_WITH_YOUR_S3_BUCKET_NAME
-```
-
-Next, the following command will create a Cloudformation Stack and deploy your SAM resources.
-
-```bash
-sam deploy \
-    --template-file packaged.yaml \
-    --stack-name aws-firehose-s3-transform-with-backup \
-    --capabilities CAPABILITY_IAM
-```
-
-> **See [Serverless Application Model (SAM) HOWTO Guide](https://github.com/awslabs/serverless-application-model/blob/master/HOWTO.md) for more details in how to get started.**
-
-After deployment is complete you can run the following command to retrieve the API Gateway Endpoint URL:
-
-```bash
-aws cloudformation describe-stacks \
-    --stack-name aws-firehose-s3-transform-with-backup \
-    --query 'Stacks[].Outputs'
-``` 
-
-## Testing
-
-We use **Pytest** and **pytest-mock** for testing our code and you can install it using pip: ``pip install pytest pytest-mock`` 
-
-Next, we run `pytest` against our `tests` folder to run our initial unit tests:
-
-```bash
-python -m pytest tests/ -v
-```
-
-**NOTE**: It is recommended to use a Python Virtual environment to separate your application development from  your system Python installation.
-
-# Appendix
-
-### Python Virtual environment
-**In case you're new to this**, python3 comes with `virtualenv` library by default so you can simply run the following:
-
-1. Create a new virtual environment
-2. Install dependencies in the new virtual environment
-
-```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
-```
-
-
-**NOTE:** You can find more information about Virtual Environment at [Python Official Docs here](https://docs.python.org/3/tutorial/venv.html). Alternatively, you may want to look at [Pipenv](https://github.com/pypa/pipenv) as the new way of setting up development workflows
-## AWS CLI commands
-
-AWS CLI commands to package, deploy and describe outputs defined within the cloudformation stack:
-
-```bash
-sam package \
-    --output-template-file packaged.yaml \
-    --s3-bucket REPLACE_THIS_WITH_YOUR_S3_BUCKET_NAME
+export PROCESSOR_STACK_NAME=aws-firehose-s3-transform-with-backup-processor
 
 sam deploy \
-    --template-file packaged.yaml \
-    --stack-name aws-firehose-s3-transform-with-backup \
-    --capabilities CAPABILITY_IAM \
-    --parameter-overrides MyParameterSample=MySampleValue
-
-aws cloudformation describe-stacks \
-    --stack-name aws-firehose-s3-transform-with-backup --query 'Stacks[].Outputs'
+  --template-file packaged.yaml \
+  --stack-name $PROCESSOR_STACK_NAME \
+  --capabilities CAPABILITY_IAM \
+  --parameter-overrides FunctionNameParameter=aws-firehose-s3-transform-with-backup-processor-lambda
 ```
 
-## Bringing to the next level
+#### Export the Lambda function ARN
 
-Here are a few ideas that you can use to get more acquainted as to how this overall process works:
+```bash
+export PROCESSOR_ARN=xxx
+```
 
-* Create an additional API resource (e.g. /hello/{proxy+}) and return the name requested through this new path
-* Update unit test to capture that
-* Package & Deploy
+### Create the stack for Kinesis Firehose delivery stream
 
-Next, you can use the following resources to know more about beyond hello world samples and how others structure their Serverless applications:
+```bash
+export DELIVERY_STREAM_STACK_NAME=aws-firehose-s3-transform-with-backup
 
-* [AWS Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo/)
-* [Chalice Python Serverless framework](https://github.com/aws/chalice)
-* Sample Python with 3rd party dependencies, pipenv and Makefile: ``sam init --location https://github.com/aws-samples/cookiecutter-aws-sam-python``
+aws cloudformation create-stack \
+  --stack-name $DELIVERY_STREAM_STACK_NAME \
+  --template-body file://cf_kinesis_s3_stack.yaml \
+  --capabilities CAPABILITY_IAM \
+  --parameters ParameterKey=ProcessorArn,ParameterValue=$PROCESSOR_ARN
+```
+
+## Produce Test Data
+
+```bash
+aws firehose put-record \
+  --delivery-stream-name DELIVERY_STREAM_NAME \
+  --record '{"Data":"83.149.9.216 - - [17/May/2015:10:05:50 +0000] \"GET /presentations/logstash-monitorama-2013/images/kibana-dashboard.png HTTP/1.1\" 200 321631 \"http://semicomplete.com/presentations/logstash-monitorama-2013/\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1700.77 Safari/537.36\""}'
+```
+
+## Delete Stacks
+
+```bash
+aws cloudformation delete-stack  --stack-name $PROCESSOR_STACK_NAME
+aws cloudformation delete-stack  --stack-name $DELIVERY_STREAM_STACK_NAME
+```

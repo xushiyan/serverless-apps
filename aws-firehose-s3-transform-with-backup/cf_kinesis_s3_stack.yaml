@@ -1,5 +1,8 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Stack for Firehose DeliveryStream S3 Destination.
+Parameters:
+  ProcessorArn:
+    Type: String
 Resources:
   deliverystream:
     DependsOn:
@@ -22,7 +25,7 @@ Resources:
           Processors:
             - Parameters:
                 - ParameterName: LambdaArn
-                  ParameterValue: arn:aws:lambda:ap-southeast-1:724781030999:function:aws-firehose-s3-transform-with-backup-processor
+                  ParameterValue: !Ref ProcessorArn
               Type: Lambda 
   s3bucket:
     Type: AWS::S3::Bucket
@@ -81,6 +84,6 @@ Resources:
           - Effect: Allow
             Action:
               - 'lambda:InvokeFunction'
-            Resource: arn:aws:lambda:ap-southeast-1:724781030999:function:aws-firehose-s3-transform-with-backup-processor
+            Resource: !Ref ProcessorArn
       Roles:
         - !Ref deliveryRole
